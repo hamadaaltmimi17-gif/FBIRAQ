@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>امتحاناتي — منشئ الامتحانات</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:#f3f6fb;color:#172033}header{background:#2457c5;color:white;padding:22px 15px;text-align:center}h1{margin:0 0 6px}main{max-width:850px;margin:18px auto;padding:0 12px 32px}.card{background:white;border-radius:15px;padding:18px;margin:14px 0;box-shadow:0 4px 16px #14213d12}label{display:block;margin:10px 0 5px;font-weight:650}input[type=text],textarea,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;background:white}textarea{min-height:70px;resize:vertical}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn{border:0;border-radius:10px;padding:11px 15px;font:inherit;font-weight:700;cursor:pointer}.primary{background:#2457c5;color:white}.secondary{background:#e8eefb;color:#214ba5}.danger{background:#fff0ef;color:#9e2720}.full{width:100%;margin-top:12px}.muted{color:#64748b;font-size:14px}.question{border-bottom:1px solid #e5eaf2;padding:15px 0}.question:last-child{border:0}.option{display:block;padding:9px 10px;margin:7px 0;border:1px solid #dbe3ef;border-radius:9px;font-weight:400}.option input{margin-left:7px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.toolbar button{flex:1}.pill{display:inline-block;background:#edf2ff;color:#214ba5;padding:4px 9px;border-radius:99px;font-size:13px}.score{text-align:center;font-size:40px;font-weight:800;color:#2457c5}.feedback{padding:10px;border-radius:9px;margin:8px 0}.correct{background:#e8f8ee;color:#176534}.wrong{background:#fff0ef;color:#9e2720}@media(max-width:520px){.grid{grid-template-columns:1fr}.card{padding:14px}}
+</style>
+</head>
+<body>
+<header><h1>امتحاناتي</h1><div>أنشئ امتحانك وصحّح الإجابات تلقائياً</div></header>
+<main>
+<section class="card">
+<h2>1) إعداد الامتحان</h2>
+<label for="examTitle">اسم الامتحان</label>
+<input id="examTitle" type="text" value="امتحان تجريبي" maxlength="100">
+<p class="muted">أضف كل سؤال وحدد الخيارات، ثم اختر الإجابة الصحيحة قبل إضافة السؤال.</p>
+</section>
+<section class="card" id="builder">
+<h2>2) إضافة سؤال</h2>
+<label for="questionText">نص السؤال</label>
+<textarea id="questionText" placeholder="مثلاً: ما عاصمة العراق؟"></textarea>
+<div class="grid">
+<div><label for="opt0">الخيار الأول</label><input id="opt0" type="text" placeholder="الخيار الأول"></div>
+<div><label for="opt1">الخيار الثاني</label><input id="opt1" type="text" placeholder="الخيار الثاني"></div>
+<div><label for="opt2">الخيار الثالث</label><input id="opt2" type="text" placeholder="الخيار الثالث"></div>
+<div><label for="opt3">الخيار الرابع (اختياري)</label><input id="opt3" type="text" placeholder="الخيار الرابع"></div>
+</div>
+<label for="correct">الإجابة الصحيحة</label>
+<select id="correct"><option value="0">الخيار الأول</option><option value="1">الخيار الثاني</option><option value="2">الخيار الثالث</option><option value="3">الخيار الرابع</option></select>
+<div class="toolbar">
+<button class="btn primary" id="addQuestion" type="button">إضافة السؤال</button>
+<button class="btn secondary" id="sample" type="button">إضافة سؤال تجريبي</button>
+</div>
+<div id="builderMessage" class="muted" aria-live="polite"></div>
+</section>
+<section class="card">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><h2 style="margin:0">3) أسئلة امتحانك</h2><span class="pill" id="count">0 أسئلة</span></div>
+<div id="questionList"><p class="muted">ما ضفت أسئلة بعد.</p></div>
+<div class="toolbar">
+<button class="btn secondary" id="startExam" type="button">عرض الامتحان</button>
+<button class="btn danger" id="clearAll" type="button">حذف كل الأسئلة</button>
+</div>
+</section>
+<section class="card" id="examCard" hidden>
+<h2 id="examHeading">الامتحان</h2>
+<form id="examForm"></form>
+<button class="btn primary full" id="gradeExam" type="button">صحّح الامتحان واحسب الدرجة</button>
+</section>
+<section class="card" id="resultCard" hidden aria-live="polite">
+<h2>النتيجة النهائية</h2><div class="score" id="score">0 / 100</div><p id="summary"></p><div id="review"></div>
+<button class="btn secondary full" id="retake" type="button">إعادة الامتحان</button>
+</section>
+</main>
+<script>
+let questions=[];
+const $=id=>document.getElementById(id);
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function renderList(){
+ $('count').textContent=questions.length+' أسئلة';
+ const list=$('questionList');
+ if(!questions.length){list.innerHTML='<p class="muted">ما ضفت أسئلة بعد.</p>';return;}
+ list.innerHTML=questions.map((q,i)=>`<div class="question"><strong>${i+1}. ${escapeHTML(q.text)}</strong><div class="muted">الإجابة الصحيحة: ${escapeHTML(q.options[q.correct])}</div><button class="btn danger" type="button" data-remove="${i}" style="margin-top:8px">حذف السؤال</button></div>`).join('');
+ list.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>{questions.splice(Number(b.dataset.remove),1);renderList();$('examCard').hidden=true;$('resultCard').hidden=true;}));
+}
+function addQuestion(text,options,correct){
+ if(!text.trim()){ $('builderMessage').textContent='اكتب نص السؤال أولاً.';return false;}
+ if(options.length<2){$('builderMessage').textContent='اكتب خيارين على الأقل.';return false;}
+ if(!Number.isInteger(correct)||correct<0||correct>=options.length){$('builderMessage').textContent='حدد إجابة صحيحة من الخيارات المكتوبة.';return false;}
+ questions.push({text:text.trim(),options,correct});
+ renderList();$('builderMessage').textContent='تمت إضافة السؤال بنجاح.';$('examCard').hidden=true;$('resultCard').hidden=true;return true;
+}
+$('addQuestion').addEventListener('click',()=>{
+ const text=$('questionText').value;
+ const all=[0,1,2,3].map(i=>$('opt'+i).value.trim());
+ const correct=Number($('correct').value);
+ const options=all.filter(v=>v!=='');
+ const correctText=all[correct];
+ if(!correctText){$('builderMessage').textContent='الخيار المحدد كإجابة صحيحة فارغ. اكتب الخيار أو اختر إجابة أخرى.';return;}
+ const correctIndex=options.indexOf(correctText);
+ if(addQuestion(text,options,correctIndex)){
+ $('questionText').value='';[0,1,2,3].forEach(i=>$('opt'+i).value='');$('correct').value='0';
+ }
+});
+$('sample').addEventListener('click',()=>addQuestion('ما عاصمة العراق؟',['بغداد','البصرة','الموصل'],0));
+$('clearAll').addEventListener('click',()=>{if(questions.length&&confirm('متأكد تريد تحذف كل الأسئلة؟')){questions=[];renderList();$('examCard').hidden=true;$('resultCard').hidden=true;$('builderMessage').textContent='تم حذف جميع الأسئلة.';}});
+$('startExam').addEventListener('click',()=>{
+ if(!questions.length){alert('أضف سؤالاً واحداً على الأقل أولاً.');return;}
+ $('examHeading').textContent=$('examTitle').value.trim()||'الامتحان';
+ $('examForm').innerHTML=questions.map((q,i)=>`<div class="question"><h3>${i+1}. ${escapeHTML(q.text)}</h3>${q.options.map((o,j)=>`<label class="option"><input type="radio" name="q${i}" value="${j}">${escapeHTML(o)}</label>`).join('')}</div>`).join('');
+ $('examCard').hidden=false;$('resultCard').hidden=true;$('examCard').scrollIntoView({behavior:'smooth',block:'start'});
+});
+$('gradeExam').addEventListener('click',()=>{
+ let correct=0;const review=[];
+ questions.forEach((q,i)=>{
+ const selected=$('examForm').querySelector(`input[name="q${i}"]:checked`);
+ const ok=selected&&Number(selected.value)===q.correct;if(ok)correct++;
+ review.push(`<div class="feedback ${ok?'correct':'wrong'}">السؤال ${i+1}: ${ok?'صحيح ✓':'خطأ ✗'} — الإجابة الصحيحة: ${escapeHTML(q.options[q.correct])}</div>`);
+ });
+ const grade=Math.round(correct/questions.length*100);
+ $('score').textContent=grade+' / 100';
+ $('summary').textContent=`إجابات صحيحة: ${correct} من ${questions.length}. كل الأسئلة لها الدرجة نفسها.`;
+ $('review').innerHTML=review.join('');$('resultCard').hidden=false;$('resultCard').scrollIntoView({behavior:'smooth',block:'start'});
+});
+$('retake').addEventListener('click',()=>{$('examForm').reset();$('resultCard').hidden=true;$('examCard').scrollIntoView({behavior:'smooth',block:'start'});});
+renderList();
+</script>
+</body>
+</html>
